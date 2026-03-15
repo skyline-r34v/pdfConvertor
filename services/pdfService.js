@@ -2,71 +2,80 @@ import puppeteer from 'puppeteer';
 import { log } from '../utils/logger.js';
 
 export const generatePDF = async (conversation, selectedMessageIds) => {
-    let browser = null;
+  let browser = null;
 
-    try {
-        log.info(`Generating PDF notes for ${selectedMessageIds.length} messages`);
+  try {
+    log.info(`Generating PDF notes for ${selectedMessageIds.length} messages`);
 
-        const selectedMessages = conversation.messages.filter(msg =>
-            selectedMessageIds.includes(msg.id)
-        );
+    const selectedMessages = conversation.messages.filter(msg =>
+      selectedMessageIds.includes(msg.id)
+    );
 
-        if (selectedMessages.length === 0) {
-            throw new Error('No messages selected for PDF generation');
-        }
+    if (selectedMessages.length === 0) {
+      throw new Error('No messages selected for PDF generation');
+    }
 
-        const htmlContent = generateWordStyleHTMLContent(conversation.title, selectedMessages);
+    const htmlContent = generateWordStyleHTMLContent(conversation.title, selectedMessages);
 
-        browser = await puppeteer.launch({
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',  
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor'
+      ],
+      // Render.com Chrome path
+      executablePath: process.env.CHROME_BIN || '/opt/render/.cache/puppeteer/chrome/linux-*/chrome-linux/chrome'
+    });
 
-        const page = await browser.newPage();
-        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    const page = await browser.newPage();
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
 
-        const pdfBuffer = await page.pdf({
-            format: 'A4',
-            printBackground: true,
-            preferCSSPageSize: true,
-            displayHeaderFooter: true,
-            headerTemplate: `
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      preferCSSPageSize: true,
+      displayHeaderFooter: true,
+      headerTemplate: `
     <div style="font-size: 9px; font-family: Calibri,Arial; width: 100%; text-align: center; color: #666; padding: 0 20px;">
       ${conversation.title}
     </div>
   `,
-            footerTemplate: `
+      footerTemplate: `
     <div style="font-size: 9px; font-family: Calibri,Arial; width: 100%; text-align: center; color: #666; padding: 0 20px;">
       Page <span class="pageNumber"></span> of <span class="totalPages"></span>
     </div>
   `,
-            margin: {
-                top: '25mm',      // ← Fixed proper margin
-                right: '20mm',    // ← Fixed proper margin
-                bottom: '25mm',   // ← Fixed proper margin
-                left: '20mm'      // ← Fixed proper margin
-            }
-        });
+      margin: {
+        top: '25mm',      // ← Fixed proper margin
+        right: '20mm',    // ← Fixed proper margin
+        bottom: '25mm',   // ← Fixed proper margin
+        left: '20mm'      // ← Fixed proper margin
+      }
+    });
 
 
-        log.info('PDF notes generated successfully');
-        return pdfBuffer;
+    log.info('PDF notes generated successfully');
+    return pdfBuffer;
 
-    } catch (error) {
-        log.error(`PDF generation failed: ${error.message}`);
-        throw new Error(`Failed to generate PDF: ${error.message}`);
-    } finally {
-        if (browser) {
-            await browser.close();
-        }
+  } catch (error) {
+    log.error(`PDF generation failed: ${error.message}`);
+    throw new Error(`Failed to generate PDF: ${error.message}`);
+  } finally {
+    if (browser) {
+      await browser.close();
     }
+  }
 };
 
 const generateWordStyleHTMLContent = (title, messages) => {
-    const sections = createNoteSections(messages);
+  const sections = createNoteSections(messages);
 
-    const sectionsHTML = sections.map((section, index) => {
-        return `
+  const sectionsHTML = sections.map((section, index) => {
+    return `
       <div class="section">
         ${section.question ? `
           <h2 class="question">Q${index + 1}. ${formatContent(section.question.content)}</h2>
@@ -79,9 +88,9 @@ const generateWordStyleHTMLContent = (title, messages) => {
         ` : ''}
       </div>
     `;
-    }).join('');
+  }).join('');
 
-    return `
+  return `
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -326,172 +335,172 @@ const generateWordStyleHTMLContent = (title, messages) => {
 };
 
 const createNoteSections = (messages) => {
-    const sections = [];
-    let currentQuestion = null;
+  const sections = [];
+  let currentQuestion = null;
 
-    messages.forEach(msg => {
-        if (msg.role === 'user') {
-            if (currentQuestion) {
-                sections.push({ question: currentQuestion, answer: null });
-            }
-            currentQuestion = msg;
-        } else if (msg.role === 'assistant') {
-            sections.push({
-                question: currentQuestion,
-                answer: msg
-            });
-            currentQuestion = null;
-        }
-    });
-
-    if (currentQuestion) {
+  messages.forEach(msg => {
+    if (msg.role === 'user') {
+      if (currentQuestion) {
         sections.push({ question: currentQuestion, answer: null });
+      }
+      currentQuestion = msg;
+    } else if (msg.role === 'assistant') {
+      sections.push({
+        question: currentQuestion,
+        answer: msg
+      });
+      currentQuestion = null;
     }
+  });
 
-    return sections;
+  if (currentQuestion) {
+    sections.push({ question: currentQuestion, answer: null });
+  }
+
+  return sections;
 };
 
 const formatContent = (content) => {
-    let formatted = escapeHtml(content);
+  let formatted = escapeHtml(content);
 
-    // Convert markdown tables to HTML tables
-    formatted = convertMarkdownTables(formatted);
+  // Convert markdown tables to HTML tables
+  formatted = convertMarkdownTables(formatted);
 
-    // Convert code blocks (```language\ncode```)
-    formatted = formatted.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
-        return `<div class="code-block">${code.trim()}</div>`;
-    });
+  // Convert code blocks (```language\ncode```)
+  formatted = formatted.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+    return `<div class="code-block">${code.trim()}</div>`;
+  });
 
-    // Convert inline code (`code`)
-    formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Convert inline code (`code`)
+  formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
 
-    // Convert headers
-    formatted = formatted.replace(/^### (.+)$/gm, '<h4>$1</h4>');
-    formatted = formatted.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+  // Convert headers
+  formatted = formatted.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+  formatted = formatted.replace(/^## (.+)$/gm, '<h3>$1</h3>');
 
-    // Convert bold (**text** or __text__)
-    formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    formatted = formatted.replace(/__(.+?)__/g, '<strong>$1</strong>');
+  // Convert bold (**text** or __text__)
+  formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  formatted = formatted.replace(/__(.+?)__/g, '<strong>$1</strong>');
 
-    // Convert italic (*text* or _text_)
-    formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    formatted = formatted.replace(/_(.+?)_/g, '<em>$1</em>');
+  // Convert italic (*text* or _text_)
+  formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  formatted = formatted.replace(/_(.+?)_/g, '<em>$1</em>');
 
-    // Convert links [text](url)
-    formatted = formatted.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2">$1</a>');
+  // Convert links [text](url)
+  formatted = formatted.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2">$1</a>');
 
-    // Convert bullet lists (- item or * item)
-    let lines = formatted.split('\n');
-    let inList = false;
-    let listType = null;
-    let result = [];
+  // Convert bullet lists (- item or * item)
+  let lines = formatted.split('\n');
+  let inList = false;
+  let listType = null;
+  let result = [];
 
-    for (let i = 0; i < lines.length; i++) {
-        let line = lines[i];
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
 
-        // Detect unordered list
-        if (/^[\s]*[-*]\s+(.+)/.test(line)) {
-            if (!inList || listType !== 'ul') {
-                if (inList) result.push(`</${listType}>`);
-                result.push('<ul>');
-                inList = true;
-                listType = 'ul';
-            }
-            result.push(`<li>${line.replace(/^[\s]*[-*]\s+/, '').trim()}</li>`);
-        }
-        // Detect ordered list
-        else if (/^[\s]*\d+\.\s+(.+)/.test(line)) {
-            if (!inList || listType !== 'ol') {
-                if (inList) result.push(`</${listType}>`);
-                result.push('<ol>');
-                inList = true;
-                listType = 'ol';
-            }
-            result.push(`<li>${line.replace(/^[\s]*\d+\.\s+/, '').trim()}</li>`);
-        }
-        else {
-            if (inList) {
-                result.push(`</${listType}>`);
-                inList = false;
-                listType = null;
-            }
-            result.push(line);
-        }
+    // Detect unordered list
+    if (/^[\s]*[-*]\s+(.+)/.test(line)) {
+      if (!inList || listType !== 'ul') {
+        if (inList) result.push(`</${listType}>`);
+        result.push('<ul>');
+        inList = true;
+        listType = 'ul';
+      }
+      result.push(`<li>${line.replace(/^[\s]*[-*]\s+/, '').trim()}</li>`);
     }
-
-    if (inList) {
+    // Detect ordered list
+    else if (/^[\s]*\d+\.\s+(.+)/.test(line)) {
+      if (!inList || listType !== 'ol') {
+        if (inList) result.push(`</${listType}>`);
+        result.push('<ol>');
+        inList = true;
+        listType = 'ol';
+      }
+      result.push(`<li>${line.replace(/^[\s]*\d+\.\s+/, '').trim()}</li>`);
+    }
+    else {
+      if (inList) {
         result.push(`</${listType}>`);
+        inList = false;
+        listType = null;
+      }
+      result.push(line);
+    }
+  }
+
+  if (inList) {
+    result.push(`</${listType}>`);
+  }
+
+  formatted = result.join('\n');
+
+  // Convert blockquotes (> text)
+  formatted = formatted.replace(/^&gt;\s+(.+)$/gm, '<blockquote>$1</blockquote>');
+
+  // Convert horizontal rules (--- or ***)
+  formatted = formatted.replace(/^(---|\*\*\*)$/gm, '<hr>');
+
+  // Convert paragraphs (text separated by blank lines)
+  formatted = formatted.split('\n\n').map(block => {
+    block = block.trim();
+    if (!block) return '';
+
+    // Don't wrap if already in HTML tag
+    if (block.match(/^<(h[1-6]|ul|ol|table|div|blockquote|hr)/)) {
+      return block;
     }
 
-    formatted = result.join('\n');
+    return `<p>${block.replace(/\n/g, '<br>')}</p>`;
+  }).join('\n');
 
-    // Convert blockquotes (> text)
-    formatted = formatted.replace(/^&gt;\s+(.+)$/gm, '<blockquote>$1</blockquote>');
-
-    // Convert horizontal rules (--- or ***)
-    formatted = formatted.replace(/^(---|\*\*\*)$/gm, '<hr>');
-
-    // Convert paragraphs (text separated by blank lines)
-    formatted = formatted.split('\n\n').map(block => {
-        block = block.trim();
-        if (!block) return '';
-
-        // Don't wrap if already in HTML tag
-        if (block.match(/^<(h[1-6]|ul|ol|table|div|blockquote|hr)/)) {
-            return block;
-        }
-
-        return `<p>${block.replace(/\n/g, '<br>')}</p>`;
-    }).join('\n');
-
-    return formatted;
+  return formatted;
 };
 
 const convertMarkdownTables = (text) => {
-    // Match markdown tables
-    const tableRegex = /\|(.+)\|\n\|[-:\s|]+\|\n((?:\|.+\|\n?)+)/g;
+  // Match markdown tables
+  const tableRegex = /\|(.+)\|\n\|[-:\s|]+\|\n((?:\|.+\|\n?)+)/g;
 
-    return text.replace(tableRegex, (match, headerRow, bodyRows) => {
-        // Parse header
-        const headers = headerRow.split('|')
-            .map(h => h.trim())
-            .filter(h => h);
+  return text.replace(tableRegex, (match, headerRow, bodyRows) => {
+    // Parse header
+    const headers = headerRow.split('|')
+      .map(h => h.trim())
+      .filter(h => h);
 
-        // Parse body rows
-        const rows = bodyRows.trim().split('\n')
-            .map(row => {
-                return row.split('|')
-                    .map(cell => cell.trim())
-                    .filter(cell => cell);
-            });
+    // Parse body rows
+    const rows = bodyRows.trim().split('\n')
+      .map(row => {
+        return row.split('|')
+          .map(cell => cell.trim())
+          .filter(cell => cell);
+      });
 
-        // Generate HTML table
-        let html = '<table>\n<thead>\n<tr>\n';
-        headers.forEach(header => {
-            html += `  <th>${header}</th>\n`;
-        });
-        html += '</tr>\n</thead>\n<tbody>\n';
-
-        rows.forEach(row => {
-            html += '<tr>\n';
-            row.forEach(cell => {
-                html += `  <td>${cell}</td>\n`;
-            });
-            html += '</tr>\n';
-        });
-
-        html += '</tbody>\n</table>';
-
-        return html;
+    // Generate HTML table
+    let html = '<table>\n<thead>\n<tr>\n';
+    headers.forEach(header => {
+      html += `  <th>${header}</th>\n`;
     });
+    html += '</tr>\n</thead>\n<tbody>\n';
+
+    rows.forEach(row => {
+      html += '<tr>\n';
+      row.forEach(cell => {
+        html += `  <td>${cell}</td>\n`;
+      });
+      html += '</tr>\n';
+    });
+
+    html += '</tbody>\n</table>';
+
+    return html;
+  });
 };
 
 const escapeHtml = (text) => {
-    if (!text) return '';
-    return text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 };
