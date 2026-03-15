@@ -18,13 +18,14 @@ export const generatePDF = async (conversation, selectedMessageIds) => {
 
     const htmlContent = generateWordStyleHTMLContent(conversation.title, selectedMessages);
 
-    browser = await puppeteer.launch({
-      headless: true,
-      executablePath: await chromium.executablePath(),
+   browser = await puppeteer.launch({
+      headless: chromium.headless,
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
-      ignoreHTTPSErrors: true
+      executablePath: await chromium.executablePath(),
+      ignoreDefaultArgs: ['--disable-extensions']
     });
+    
     const page = await browser.newPage();
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
 
