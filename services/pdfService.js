@@ -19,15 +19,20 @@ export const generatePDF = async (conversation, selectedMessageIds) => {
 
     browser = await puppeteer.launch({
       headless: 'new',
+      executablePath: process.env.NODE_ENV === 'production'
+        ? '/opt/render/project/src/node_modules/puppeteer/.local-chromium/linux-*/chrome-linux/chrome'
+        : undefined,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-gpu',
         '--disable-web-security',
+        '--disable-features=VizDisplayCompositor',
         '--single-process'
       ]
     });
+
 
 
     const page = await browser.newPage();
