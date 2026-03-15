@@ -9,7 +9,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon server.js",
-    "postinstall": "npx puppeteer browsers install chrome"
+    "postinstall": "yarn puppeteer browsers install chrome"
   },
   "dependencies": {
     "cors": "^2.8.6",
