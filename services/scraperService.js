@@ -1,5 +1,4 @@
-import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
+import puppeteer from 'puppeteer';
 import { log } from '../utils/logger.js';
 
 export const scrapeChatGPTConversation = async (shareUrl) => {
@@ -8,11 +7,15 @@ export const scrapeChatGPTConversation = async (shareUrl) => {
   try {
     log.info(`Starting to scrape URL: ${shareUrl}`);
     
-     browser = await puppeteer.launch({
-      headless: true,
-      executablePath: await chromium.executablePath(),
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--disable-gpu'
+      ]
     });
 
     const page = await browser.newPage();
