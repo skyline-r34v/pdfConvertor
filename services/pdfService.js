@@ -23,13 +23,12 @@ export const generatePDF = async (conversation, selectedMessageIds) => {
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
-        '--disable-gpu',  
+        '--disable-gpu',
         '--disable-web-security',
-        '--disable-features=VizDisplayCompositor'
-      ],
-      // Render.com Chrome path
-      executablePath: process.env.CHROME_BIN || '/opt/render/.cache/puppeteer/chrome/linux-*/chrome-linux/chrome'
+        '--single-process'
+      ]
     });
+
 
     const page = await browser.newPage();
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
