@@ -1,7 +1,7 @@
 import cors from 'cors';
 
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'https://gptpdf-sana.netlify.app/',
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true,
   optionsSuccessStatus: 200
 };
