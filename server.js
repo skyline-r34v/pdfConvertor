@@ -1,8 +1,9 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
+import cors from 'cors';
 import morgan from 'morgan';
-import corsConfig from './middleware/corsConfig.js';
+//import corsConfig from './middleware/corsConfig.js';
 import errorHandler from './middleware/errorHandler.js';
 import scrapeRoutes from './routes/scrapeRoutes.js';
 import pdfRoutes from './routes/pdfRoutes.js';
@@ -20,7 +21,7 @@ if(process.env.NODE_ENV === 'development') {
 //app.use(morgan('dev'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.use(corsConfig);
+app.use(cors());
 
 // Routes
 app.use('/api/scrape', scrapeRoutes);
