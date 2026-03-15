@@ -1,4 +1,5 @@
-import puppeteer from 'puppeteer';
+import puppeteer from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 import { log } from '../utils/logger.js';
 
 export const generatePDF = async (conversation, selectedMessageIds) => {
@@ -18,23 +19,12 @@ export const generatePDF = async (conversation, selectedMessageIds) => {
     const htmlContent = generateWordStyleHTMLContent(conversation.title, selectedMessages);
 
     browser = await puppeteer.launch({
-      headless: 'new',
-      executablePath: process.env.NODE_ENV === 'production'
-        ? '/opt/render/project/src/node_modules/puppeteer/.local-chromium/linux-*/chrome-linux/chrome'
-        : undefined,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--disable-web-security',
-        '--disable-features=VizDisplayCompositor',
-        '--single-process'
-      ]
+      headless: true,
+      executablePath: await chromium.executablePath(),
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      ignoreHTTPSErrors: true
     });
-
-
-
     const page = await browser.newPage();
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
 
